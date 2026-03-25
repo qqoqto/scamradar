@@ -39,9 +39,18 @@ function RiskMeter({ score }) {
   )
 }
 
+const PLATFORMS = [
+  { key: '', label: '自動偵測', desc: '嘗試所有平台' },
+  { key: 'ig', label: 'Instagram', desc: 'IG 帳號' },
+  { key: 'threads', label: 'Threads', desc: 'Threads 帳號' },
+  { key: 'fb', label: 'Facebook', desc: 'FB 粉專/帳號' },
+  { key: 'x', label: 'X (Twitter)', desc: '推特帳號' },
+]
+
 export default function Checker() {
   const [mode, setMode] = useState('phone')
   const [input, setInput] = useState('')
+  const [platform, setPlatform] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
@@ -54,7 +63,12 @@ export default function Checker() {
     setError(null)
     setResult(null)
     try {
-      const res = await current.apiCall(input.trim())
+      let query = input.trim()
+      // For username mode, prepend platform hint if selected
+      if (mode === 'username' && platform) {
+        query = `${platform}:${query.replace(/^@/, '')}`
+      }
+      const res = await current.apiCall(query)
       setResult(res)
     } catch (e) {
       setError(e.message)
@@ -78,7 +92,7 @@ export default function Checker() {
         {MODES.map(({ key, icon: Icon, label }) => (
           <button
             key={key}
-            onClick={() => { setMode(key); setResult(null); setError(null); setInput('') }}
+            onClick={() => { setMode(key); setResult(null); setError(null); setInput(''); setPlatform('') }}
             className={`
               flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
               ${mode === key
@@ -94,6 +108,28 @@ export default function Checker() {
 
       {/* Input */}
       <div className="card-glow rounded-2xl bg-[var(--bg-card)] p-5">
+        {/* Platform selector — only for username mode */}
+        {mode === 'username' && (
+          <div className="mb-4">
+            <p className="text-xs text-slate-500 mb-2">選擇社群平台</p>
+            <div className="flex gap-2 flex-wrap">
+              {PLATFORMS.map(p => (
+                <button
+                  key={p.key}
+                  onClick={() => setPlatform(p.key)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all
+                    ${platform === p.key
+                      ? 'bg-green-500/15 text-green-400 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.3)]'
+                      : 'bg-white/[0.03] text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]'}`}
+                >
+                  <span className="block">{p.label}</span>
+                  <span className="block text-[10px] text-slate-600 mt-0.5">{p.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {mode === 'content' ? (
           <textarea
             value={input}
