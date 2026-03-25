@@ -14,6 +14,7 @@ TYPE_LABELS = {
     "content": "內容分析",
     "url": "網址檢查",
     "image": "截圖分析",
+    "phone": "電話查詢",
 }
 
 
@@ -169,6 +170,7 @@ def build_welcome_message() -> dict:
                     _feature_row("💬", "轉傳可疑訊息", "直接把可疑的文字訊息傳給我"),
                     _feature_row("👤", "查帳號", "輸入 @帳號名稱 幫你分析可信度"),
                     _feature_row("🔗", "查網址", "貼上連結幫你確認安全性"),
+                    _feature_row("📱", "查電話", "傳電話號碼幫你查是不是詐騙"),
                     _feature_row("📸", "傳截圖", "傳可疑訊息的截圖，我會辨識分析"),
                 ],
             },
@@ -234,4 +236,49 @@ def _feature_row(icon: str, title: str, desc: str) -> dict:
                 ],
             },
         ],
+    }
+
+
+# ============================================================
+# Group chat messages (compact, non-intrusive)
+# ============================================================
+
+def build_reply_group(result: AnalysisResult) -> dict:
+    """Build a compact text message for group chats.
+    
+    Group replies are intentionally short and simple — no Flex Message,
+    no buttons, just a clear warning that doesn't flood the chat.
+    """
+    cfg = LEVEL_CONFIG.get(result.level, LEVEL_CONFIG["high"])
+
+    # Build compact warning
+    lines = [f"{cfg['icon']} 注意！這則訊息可能是詐騙（風險 {result.score}/100）"]
+
+    # Add top 2 flags max
+    if result.flags:
+        for flag in result.flags[:2]:
+            lines.append(f"• {flag}")
+
+    # One-line action suggestion
+    if result.score >= 80:
+        lines.append("\n請不要點擊連結、不要匯款、不要提供個資。")
+        lines.append("有疑問請撥 165 反詐騙專線。")
+    else:
+        lines.append("\n建議大家先不要回應，多留意一下。")
+
+    lines.append("\n🛡️ by 獵詐雷達 — 私訊我可以查更多")
+
+    return {"type": "text", "text": "\n".join(lines)}
+
+
+def build_group_welcome() -> dict:
+    """Welcome message when bot is added to a group."""
+    return {
+        "type": "text",
+        "text": (
+            "🛡️ 獵詐雷達已加入群組！\n\n"
+            "我會在背景默默守護這個群組。如果有人傳了可疑的詐騙訊息，我會自動跳出來提醒大家。\n\n"
+            "平常不會打擾你們聊天，只有偵測到高風險內容時才會出聲。\n\n"
+            "💡 也可以私訊我做更詳細的查詢喔！"
+        ),
     }
