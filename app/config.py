@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Google Safe Browsing
     google_safe_browsing_key: str = ""
 
+    # ScraperAPI (social media scraping via residential proxy)
+    scraper_api_key: str = ""
+
     # App
     app_name: str = "ScamRadar 獵詐雷達"
     debug: bool = False
