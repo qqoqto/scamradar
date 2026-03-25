@@ -1,6 +1,7 @@
 """ScamRadar configuration — loaded from environment variables."""
 
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from functools import lru_cache
 
 
@@ -34,9 +35,19 @@ class Settings(BaseSettings):
     account_cache_ttl: int = 3600
     url_cache_ttl: int = 7200
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Port (Railway injects PORT env var)
+    port: int = 8000
+
+    @model_validator(mode="after")
+    def fix_database_url(self):
+        """Railway injects postgresql:// but asyncpg needs postgresql+asyncpg://"""
+        if self.database_url.startswith("postgresql://"):
+            self.database_url = self.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+        return self
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
 @lru_cache()
