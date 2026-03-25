@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0b1120;
+  --bg-card: #141c2e;
+  --bg-card-hover: #1a2540;
+  --border-subtle: rgba(34, 197, 94, 0.15);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --accent: #22c55e;
+  --accent-dim: rgba(34, 197, 94, 0.1);
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans TC', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(34, 197, 94, 0.3); border-radius: 3px; }
+
+/* Glow effect for cards */
+.card-glow {
+  box-shadow: 0 0 0 1px var(--border-subtle),
+              0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.3),
+              0 8px 32px rgba(0, 0, 0, 0.5),
+              0 0 20px rgba(34, 197, 94, 0.05);
+  transform: translateY(-1px);
+}
+
+/* Risk level badges */
+.risk-safe { color: #4ade80; background: rgba(74, 222, 128, 0.1); }
+.risk-low { color: #a3e635; background: rgba(163, 230, 53, 0.1); }
+.risk-medium { color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
+.risk-high { color: #f87171; background: rgba(248, 113, 113, 0.1); }
+.risk-critical { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+
+/* Pulse animation for live indicator */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.5); }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Radar sweep animation */
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.radar-sweep {
+  animation: sweep 4s linear infinite;
+}
+
+/* Fade in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
