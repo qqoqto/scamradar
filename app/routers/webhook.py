@@ -131,12 +131,27 @@ async def _handle_message(event: dict, reply_token: str):
         await _reply(reply_token, [flex])
 
     elif msg_type == "image":
-        # TODO: OCR integration
-        # For now, inform user that image analysis is coming soon
-        await _reply(reply_token, [{
-            "type": "text",
-            "text": "收到截圖了！截圖辨識功能正在開發中，目前可以先幫你分析文字訊息和網址。\n\n請把截圖裡的文字複製貼上給我，我來幫你分析～",
-        }])
+        # Send "analyzing" message first, then process
+        message_id = message.get("id")
+        if not message_id:
+            return
+
+        # Download image from LINE
+        try:
+            image_data = await _get_message_content(message_id)
+        except Exception as e:
+            logger.error(f"Failed to download image: {e}")
+            await _reply(reply_token, [{
+                "type": "text",
+                "text": "抱歉，圖片下載失敗了。可以重新傳一次嗎？",
+            }])
+            return
+
+        # Analyze with Claude Vision
+        from app.services.image_analyzer import analyze_image
+        result = await analyze_image(image_data)
+        flex = build_reply(result)
+        await _reply(reply_token, [flex])
 
     else:
         await _reply(reply_token, [{
