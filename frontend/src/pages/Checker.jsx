@@ -5,7 +5,7 @@ import { api } from '../api'
 const MODES = [
   { key: 'phone', icon: Phone, label: '電話號碼', placeholder: '輸入電話號碼，例如 0912345678 或 +886912345678', apiCall: api.checkPhone },
   { key: 'url', icon: Globe, label: '網址連結', placeholder: '輸入可疑網址，例如 https://example.com', apiCall: api.checkUrl },
-  { key: 'username', icon: User, label: '社群帳號', placeholder: '輸入帳號名稱，例如 @scammer123', apiCall: api.checkUsername },
+  { key: 'username', icon: User, label: '社群帳號', placeholder: '輸入社群帳號名稱（IG / FB / LINE / X），例如 @scammer123', apiCall: api.checkUsername },
   { key: 'content', icon: FileText, label: '訊息內容', placeholder: '貼上可疑訊息內容...', apiCall: api.checkContent },
 ]
 
