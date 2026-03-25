@@ -1,5 +1,6 @@
 """ScamRadar — LINE Bot 防詐分析系統 main application."""
 
+import os
 import logging
 from contextlib import asynccontextmanager
 
@@ -60,3 +61,9 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, log_level="info")
