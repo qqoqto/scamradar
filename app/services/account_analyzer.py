@@ -1,4 +1,9 @@
-"""Account analyzer — cross-platform profile lookup + risk scoring."""
+"""Account analyzer — cross-platform profile lookup + risk scoring.
+
+Phase 3: Now integrates real social media scrapers (Instagram, Threads,
+Facebook, X/Twitter) via lightweight httpx-based scraping. Falls back
+to heuristic-only analysis if scraping fails.
+"""
 
 import re
 import logging
@@ -71,6 +76,15 @@ def score_account(f: AccountFeatures) -> int:
     if f.report_count > 0:
         score += min(f.report_count * 5, 20)
 
+    # --- Phase 3: Bonus for scraped real data ---
+    # If we actually have real follower data, we can be more confident
+    if f.platform != "unknown" and f.followers > 0:
+        # Real account with real followers → lower baseline
+        if f.followers > 1000 and f.post_count > 10:
+            score -= 10
+        elif f.followers > 100 and f.post_count > 5:
+            score -= 5
+
     return max(0, min(100, score))
 
 
@@ -97,20 +111,33 @@ def _has_random_pattern(username: str) -> bool:
 
 
 # ============================================================
-# Profile lookup (placeholder — real scrapers in scrapers/)
+# Profile lookup — Phase 3: integrated with scrapers
 # ============================================================
 
 async def _lookup_profile(username: str) -> AccountFeatures:
     """Look up a username across platforms.
 
-    In production, this calls the Playwright scrapers.
-    For MVP, we return a basic feature set based on heuristics.
+    Phase 3: Tries real scrapers first, falls back to heuristics.
+    Supports platform hints: "ig:username", "threads:username", etc.
     """
-    # TODO: integrate real scrapers (instagram.py, facebook.py, twitter.py)
-    # For now, build features from username analysis alone
+    try:
+        from app.scrapers import scrape_profile
+        scraped = await scrape_profile(username)
+        if scraped:
+            logger.info(f"Scraped real data for @{username}: platform={scraped.platform}, followers={scraped.followers}")
+            return scraped
+    except Exception as e:
+        logger.warning(f"Scraper error for @{username}: {e}")
 
-    features = AccountFeatures(
-        username=username,
+    # Fallback: heuristic-only features
+    logger.info(f"Using heuristic-only analysis for @{username}")
+    clean = username.strip().lstrip("@＠")
+    # Remove platform hint if present
+    if ":" in clean and not clean.startswith("http"):
+        clean = clean.split(":", 1)[-1].strip()
+
+    return AccountFeatures(
+        username=clean,
         platform="unknown",
         account_age_days=None,
         followers=0,
@@ -125,14 +152,11 @@ async def _lookup_profile(username: str) -> AccountFeatures:
         report_count=0,
     )
 
-    # Apply username-based heuristics even without scraping
-    # These alone can catch obvious bot patterns
-    return features
-
 
 def _build_account_explanation(score: int, features: AccountFeatures) -> str:
     """Build human-readable explanation in Traditional Chinese."""
     parts = []
+    platform_label = _platform_label(features.platform)
 
     if score < 30:
         parts.append(f"帳號 @{features.username} 目前看起來沒有明顯的可疑特徵。")
@@ -140,6 +164,10 @@ def _build_account_explanation(score: int, features: AccountFeatures) -> str:
         parts.append(f"帳號 @{features.username} 有一些需要留意的地方：")
     else:
         parts.append(f"帳號 @{features.username} 有多項可疑特徵：")
+
+    # Show data source
+    if features.platform != "unknown":
+        parts.append(f"（已從 {platform_label} 取得真實資料）")
 
     if features.account_age_days is not None and features.account_age_days < 30:
         parts.append(f"• 帳號才建立 {features.account_age_days} 天，非常新")
@@ -149,18 +177,24 @@ def _build_account_explanation(score: int, features: AccountFeatures) -> str:
         parts.append("• 沒有填寫個人簡介")
     if features.following > 500 and features.followers < 20:
         parts.append(f"• 追蹤了 {features.following} 人但只有 {features.followers} 個粉絲，比例非常異常")
-    if features.post_count == 0:
+    if features.post_count == 0 and features.platform != "unknown":
         parts.append("• 完全沒有發過貼文")
+    elif features.post_count == 0 and features.platform == "unknown":
+        parts.append("• 無法取得貼文資料")
     if _has_excessive_numbers(features.username):
         parts.append("• 帳號名稱含大量數字，疑似自動產生")
     if features.is_verified:
         parts.append("• 已通過官方認證 ✓")
+    if features.cross_platform_count >= 2:
+        parts.append(f"• 在 {features.cross_platform_count} 個平台上都有找到此帳號")
 
     return "\n".join(parts)
 
 
 def _build_account_flags(features: AccountFeatures) -> list[str]:
     flags = []
+    if features.platform != "unknown":
+        flags.append(f"來源：{_platform_label(features.platform)}")
     if features.account_age_days is not None and features.account_age_days < 30:
         flags.append(f"帳號僅建立 {features.account_age_days} 天")
     if not features.has_profile_pic:
@@ -173,13 +207,26 @@ def _build_account_flags(features: AccountFeatures) -> list[str]:
         flags.append("帳號名疑似隨機產生")
     if features.following > 500 and features.followers < 20:
         flags.append("追蹤/粉絲比例極度異常")
-    if features.post_count == 0:
+    if features.post_count == 0 and features.platform != "unknown":
         flags.append("沒有任何貼文")
     if features.in_blacklist:
         flags.append("已被其他使用者回報為詐騙")
     if features.is_verified:
         flags.append("已通過官方認證")
+    if features.cross_platform_count >= 2:
+        flags.append(f"跨 {features.cross_platform_count} 平台存在")
     return flags
+
+
+def _platform_label(platform: str) -> str:
+    labels = {
+        "instagram": "Instagram",
+        "threads": "Threads",
+        "facebook": "Facebook",
+        "x": "X (Twitter)",
+        "unknown": "未知",
+    }
+    return labels.get(platform, platform)
 
 
 def _score_to_level(score: int) -> str:
@@ -208,14 +255,15 @@ def _build_account_action(score: int) -> str:
 
 async def analyze_account(username: str) -> AnalysisResult:
     """Analyze a social media account and return risk assessment."""
-    username = username.strip().lstrip("@＠")
+    clean = username.strip().lstrip("@＠")
 
-    # Check cache
-    cached = await cache_get(f"account:{username}")
+    # For cache key, use the full input (with platform hint if any)
+    cache_key = f"account:{clean}"
+    cached = await cache_get(cache_key)
     if cached:
         return AnalysisResult(**cached)
 
-    # Lookup profile features
+    # Lookup profile features (tries scrapers → falls back to heuristics)
     features = await _lookup_profile(username)
 
     # Score
@@ -225,6 +273,11 @@ async def analyze_account(username: str) -> AnalysisResult:
     explanation = _build_account_explanation(score, features)
     action = _build_account_action(score)
 
+    # Determine engine type
+    engine = "rule"
+    if features.platform != "unknown":
+        engine = "scraper+rule"
+
     result = AnalysisResult(
         query_type="account",
         score=score,
@@ -233,10 +286,10 @@ async def analyze_account(username: str) -> AnalysisResult:
         explanation=explanation,
         action=action,
         details=features.model_dump(),
-        engine="rule",
+        engine=engine,
     )
 
     # Cache result
-    await cache_set(f"account:{username}", result.model_dump(), ttl=3600)
+    await cache_set(cache_key, result.model_dump(), ttl=3600)
 
     return result
