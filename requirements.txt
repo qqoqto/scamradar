@@ -1,0 +1,28 @@
+# ScamRadar dependencies
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+pydantic-settings==2.*
+httpx==0.28.*
+
+# LINE SDK (optional — we use raw HTTP for flexibility)
+# line-bot-sdk==3.*
+
+# Database
+sqlalchemy[asyncio]==2.0.*
+asyncpg==0.30.*
+alembic==1.14.*
+
+# Redis
+redis[hiredis]==5.*
+
+# Claude API
+anthropic==0.43.*
+
+# OCR (optional, for Phase 2)
+# pytesseract==0.3.*
+# Pillow==11.*
+
+# Testing
+pytest==8.*
+pytest-asyncio==0.24.*
+httpx  # already listed above, used for test client
